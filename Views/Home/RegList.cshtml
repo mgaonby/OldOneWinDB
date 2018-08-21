@@ -1,0 +1,59 @@
+﻿@model List<OldOneWinDB.Models.ViewModels.RegistrationsViewModel>
+
+<div>
+    <br><br>
+    <div style="display:flex; margin: 0 20px;">
+        <div style="width:80px;font-weight:bold; border:solid 1px;">Номер</div>
+        <div style="width:200px;font-weight:bold; border:solid 1px;">Заявитель</div>
+        <div style="width:180px;font-weight:bold; border:solid 1px;">Телефон</div>
+        <div style="width:200px;font-weight:bold; border:solid 1px;">Адрес</div>
+        <div style="width:120px;font-weight:bold; border:solid 1px;">Дата обращения</div>
+        <div style="width:120px;font-weight:bold; border:solid 1px;">Дата передачи в отдел</div>
+        <div style="width:120px;font-weight:bold; border:solid 1px;">Дата возврата из отдела</div>
+        <div style="width:120px;font-weight:bold; border:solid 1px;">Дата выдачи</div>
+        <div style="width:120px;font-weight:bold; border:solid 1px;">Срок готовности</div>
+
+    </div>
+    <div id="scrolList">
+        @Html.Partial("_RegistrationItems")
+    </div>
+</div>
+<script>
+
+    $(function () {
+
+
+
+        var page = 0;
+        var _inCallback = false;
+        function loadItems() {
+            if (page > -1 && !_inCallback) {
+                _inCallback = true;
+                page++;
+
+
+                $.ajax({
+                    type: 'GET',
+                    url: '/Home/getRegListAjax/' + page,
+                    success: function (data, textstatus) {
+                        if (data != '') {
+                            $("#scrolList").append(data);
+                        }
+                        else {
+                            page = -1;
+                        }
+                        _inCallback = false;
+
+                    }
+                });
+            }
+        }
+        // обработка события скроллинга
+        $(window).scroll(function () {
+            if ($(window).scrollTop() == $(document).height() - $(window).height()) {
+
+                loadItems();
+            }
+        });
+    })
+</script>

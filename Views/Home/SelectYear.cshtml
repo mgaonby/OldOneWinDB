@@ -1,0 +1,10 @@
+﻿@model OldOneWinDB.Models.SelectPeriodModel
+<div>
+    <h2>Выберите год</h2>
+    <form method="post" asp-controller="Home" asp-action="FindForm">
+
+        <select asp-for="Year" asp-items='new SelectList(ViewBag.Years)' class="selectList"></select>
+
+        <input type="submit" value="Выбрать"/>
+    </form>
+</div>

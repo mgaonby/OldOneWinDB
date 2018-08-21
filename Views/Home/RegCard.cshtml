@@ -1,0 +1,152 @@
+﻿@model OldOneWinDB.Models.TblRegistration
+@{ 
+    System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("ru-RU");
+}
+<h2>Регистрационная карта</h2>
+<h4><a asp-controller="Home" asp-action="RegList" >Назад</a></h4>
+<div>
+    <fieldset id="ContentZayav">
+        <legend>Заявление</legend>
+        <div>
+            Заявление №
+            <span style="font-weight:bold"> @Model.DocNo </span>
+            от<span id="showdatetime" style="font-weight:bold">
+    @{
+        if (Model.GettingDate != null)
+        {
+            <span> @Model.GettingDate.Value.ToShortDateString()</span>
+        }
+
+    }
+  
+</span>
+            <br />
+
+            <b>Форма подачи:</b> @Model.StatementForm
+
+            <br /><br />
+            <div>
+
+                <div>
+
+
+                    <b>Наименование процедуры: </b> @Model.TblDocRegistry.RegName <br />
+
+                    <b>Дата исполнения:</b>
+                    @{
+                        if (Model.MustBeReadyDate != null)
+                        {
+                            <span> @Model.MustBeReadyDate.Value.ToShortDateString()</span>
+                        }
+
+                    }
+                    <br />
+
+
+                    <b>Кол-во листов:</b> @Model.KolList <br />
+                    <b>приложения :</b> @Model.KolListPril <br />
+
+                </div>
+            </div>
+        </div>
+    </fieldset>
+
+    <fieldset id="ContentZ">
+        <legend>Заявитель</legend>
+        <div>
+
+            <b>Фамилия:</b> @Model.Lname<br />
+            <b>Имя:</b> @Model.Fname<br />
+            <b>Отчество:</b> @Model.Mname<br />
+            @{
+                if (Model.Organiz != null)
+                {
+                    <b>Организация:</b>
+                    <span> @Model.Organiz <br /></span>
+                }
+
+            }
+
+            <br />
+
+            <b>Телефон:</b> @Model.PhoneNo<br />
+            <b>№ паспорта:</b> @Model.PassportNo<br />
+            <b>Личный №:</b> @Model.PersonalNo<br />
+            <b>Кем выдан:</b> @Model.PassIssuer<br />
+            <b>Дата выдачи:</b>
+            @{
+                if (Model.PassIssueDate != null)
+                {
+                    <span> @Model.PassIssueDate.Value.ToShortDateString()</span>
+                }
+
+            }<br />
+            <b>Адрес:</b> @Model.Address<br />
+        </div>
+    </fieldset>
+
+    <fieldset id="ContentLeft">
+        <legend>Ход рассмотрения</legend>
+        <textarea cols="100" rows="5">@Model.Notes</textarea><br />
+        <b>Дата передачи в отдел: </b> @{
+            if (Model.OutDeptDate != null)
+            {
+                <span> @Model.OutDeptDate.Value.ToShortDateString()</span>
+            }
+
+        }<br />
+        <b>Дата возврата из отдела: </b>
+        @{
+            if (Model.ReturnInDeptDate != null)
+            {
+                <span> @Model.ReturnInDeptDate.Value.ToShortDateString()</span>
+            }
+
+        }
+        <br />
+        <b>Дата выдачи заявителю: </b>
+        @{
+            if (Model.IssueDate != null)
+            {
+                <span> @Model.IssueDate.Value.ToShortDateString()</span>
+            }
+
+        }
+        <br />
+
+    </fieldset>
+    <fieldset id="ContentLeft">
+        <legend>Решение</legend>
+
+        @if (Model.ResultType != null)
+        {
+            <b>Вопрос решен</b>
+            if (Model.ResultType.Value)
+            {
+                <span> Положительно</span>
+            }
+            else
+            {
+                <span> Отрицательно</span>
+            }
+        }
+         
+        @if (!String.IsNullOrEmpty(Model.NumberSolutions))
+        {
+            <b>№ решения </b> 
+            @Model.NumberSolutions
+
+        }
+        @if (Model.DateSsolutions != null)
+        {
+            <b>от</b>
+            Model.DateSsolutions.Value.ToShortDateString();
+
+        }
+    </fieldset>
+
+
+        <br /><br />
+
+</div>
+

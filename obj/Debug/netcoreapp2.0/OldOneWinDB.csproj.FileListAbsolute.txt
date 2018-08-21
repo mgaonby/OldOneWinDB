@@ -1,0 +1,11 @@
+c:\users\panysh\source\repos\OldOneWinDB\OldOneWinDB\bin\Debug\netcoreapp2.0\OldOneWinDB.deps.json
+c:\users\panysh\source\repos\OldOneWinDB\OldOneWinDB\bin\Debug\netcoreapp2.0\OldOneWinDB.runtimeconfig.json
+c:\users\panysh\source\repos\OldOneWinDB\OldOneWinDB\bin\Debug\netcoreapp2.0\OldOneWinDB.runtimeconfig.dev.json
+c:\users\panysh\source\repos\OldOneWinDB\OldOneWinDB\bin\Debug\netcoreapp2.0\OldOneWinDB.dll
+c:\users\panysh\source\repos\OldOneWinDB\OldOneWinDB\obj\Debug\netcoreapp2.0\OldOneWinDB.csprojAssemblyReference.cache
+c:\users\panysh\source\repos\OldOneWinDB\OldOneWinDB\obj\Debug\netcoreapp2.0\OldOneWinDB.csproj.CoreCompileInputs.cache
+c:\users\panysh\source\repos\OldOneWinDB\OldOneWinDB\obj\Debug\netcoreapp2.0\OldOneWinDB.AssemblyInfoInputs.cache
+c:\users\panysh\source\repos\OldOneWinDB\OldOneWinDB\obj\Debug\netcoreapp2.0\OldOneWinDB.AssemblyInfo.cs
+c:\users\panysh\source\repos\OldOneWinDB\OldOneWinDB\bin\Debug\netcoreapp2.0\OldOneWinDB.pdb
+c:\users\panysh\source\repos\OldOneWinDB\OldOneWinDB\obj\Debug\netcoreapp2.0\OldOneWinDB.dll
+c:\users\panysh\source\repos\OldOneWinDB\OldOneWinDB\obj\Debug\netcoreapp2.0\OldOneWinDB.pdb

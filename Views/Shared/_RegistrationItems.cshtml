@@ -1,0 +1,66 @@
+﻿@model List<OldOneWinDB.Models.ViewModels.RegistrationsViewModel>
+
+@foreach (var item in Model)
+{
+
+    System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("ru-RU");
+    @*<tr>
+
+            <td class='OrderNo' style='text-align: center;'></td>
+            <td class='LName' style='text-align: center;'>@item.FullName</td>
+            <td class='PhoneNo'>@item.PhoneNo</td>
+            <td class='Address'>@item.Adres</td>
+            <td class='GettingDate'>@item.GettingDate.Value.ToShortDateString()</td>
+            <td class='OutDeptDate'></td>
+            <td class='ReturnInDeptDate'>@item.ReturnInDeptDate</td>
+            <td class='IssueDate'>@item.IssueDate</td>
+            <td class='MustBeReady' style='color:red;font-weight:bold;'>@item.MustBeReadyDate</td>
+        </tr>*@
+
+    <div style="display:flex; margin: 0 20px;">
+        <div style="width:80px; border:solid 1px; padding:5px;"><input type="button" onclick="location.href='@Url.Action("RegCard", "Home", new { RegistrationID = item.RegistrationID })'" value="@item.DocNo" /></div>
+        <div style="width:200px; border:solid 1px; padding:5px;">@item.FullName</div>
+        <div style="width:180px; border:solid 1px; padding:5px;">@item.PhoneNo</div>
+        <div style="width:200px; border:solid 1px; padding:5px;">@item.Adres</div>
+        <div style="width:120px; border:solid 1px; padding:5px;">
+            @if (item.MustBeReadyDate != null)
+            {
+                <span> @item.MustBeReadyDate.Value.ToShortDateString()</span>
+            }
+
+        </div>
+        <div style="width:120px; border:solid 1px; padding:5px;">
+
+            @if (item.OutDeptDate != null)
+            {
+                <span> @item.OutDeptDate.Value.ToShortDateString()</span>
+            }
+
+
+        </div>
+        <div style="width:120px; border:solid 1px; padding:5px;">
+            @if (item.ReturnInDeptDate != null)
+            {
+                <span> @item.ReturnInDeptDate.Value.ToShortDateString()</span>
+            }
+
+
+
+        </div>
+        <div style="width:120px; border:solid 1px; padding:5px;">
+            @if (item.IssueDate != null)
+            {
+                <span>  @item.IssueDate.Value.ToShortDateString()</span>
+            }
+
+
+        </div>
+        <div style="width:120px; border:solid 1px; padding:5px;">
+            @if (item.MustBeReadyDate != null)
+            {
+                <span> @item.MustBeReadyDate.Value.ToShortDateString()</span>
+            }
+        </div>
+
+    </div>
+}

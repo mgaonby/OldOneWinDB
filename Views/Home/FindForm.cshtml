@@ -1,0 +1,60 @@
+﻿@model OldOneWinDB.Models.FindParamsModel
+<div>
+    <br />
+    <form method="post" id="mainRecordForm" asp-action="RegList" asp-controller="Home">
+        <div>
+            <label asp-for="DocNo"></label><br />
+            <input asp-for="DocNo" />
+        </div>
+        <div>
+            <label asp-for="Fname"></label><br />
+            <input asp-for="Fname" />
+        </div>
+        <div>
+            <label asp-for="Lname"></label><br />
+            <input asp-for="Lname" />
+        </div>
+
+        <div>
+            <label asp-for="Mname"></label><br />
+            <input asp-for="Mname" />
+        </div>
+        <div>
+            <label asp-for="Adres"></label><br />
+            <input asp-for="Adres" />
+        </div>  
+        <div>
+            <label asp-for="StartOutDeptDate"></label><br />
+            <input type="date" asp-for="StartOutDeptDate" />
+        </div>
+        <div>
+            <label asp-for="EndOutDeptDate"></label><br />
+            <input type="date" asp-for="EndOutDeptDate" />
+        </div>
+        <div>
+            <label asp-for="StartReturnInDeptDate"></label><br />
+            <input type="date" asp-for="StartReturnInDeptDate" />
+        </div>
+        <div>
+            <label asp-for="EndReturnInDeptDate"></label><br />
+            <input type="date" asp-for="EndReturnInDeptDate" />
+        </div>
+        <div>
+            <label asp-for="StartIssueDate"></label><br />
+            <input type="date" asp-for="StartIssueDate" />
+        </div>
+        <div>
+            <label asp-for="EndIssueDate"></label><br />
+            <input type="date" asp-for="EndIssueDate" />
+        </div>
+        <div>
+            <label asp-for="DateSsolutions"></label><br />
+            <input type="date" asp-for="DateSsolutions" />
+        </div>
+
+
+        <div>
+            <input type="submit" value="Поиск" />
+        </div>
+    </form>
+</div>
