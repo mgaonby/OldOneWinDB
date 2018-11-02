@@ -16,5 +16,7 @@ namespace OldOneWinDB.Models
         public byte? KolList { get; set; }
         public string StatementForm { get; set; }
         public byte? PeriodType { get; set; }
+
+        public virtual TblOrganization TblOrganization { get; set; }
     }
 }

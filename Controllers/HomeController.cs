@@ -2,8 +2,13 @@
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
@@ -17,12 +22,12 @@ namespace OldOneWinDB.Controllers
     public class HomeController : Controller
     {
         int pageSize = 50;
+        private readonly IHostingEnvironment _hostingEnvironment;
         private IMemoryCache _cache;
-        List<TblRegistration> list;
         List<ConnectionStrings> connStrs;
-        public HomeController(IMemoryCache memoryCache)
+
+        public HomeController(IMemoryCache memoryCache, IHostingEnvironment hostingEnvironment)
         {
-           // db = applicationContext;
             _cache = memoryCache;
             connStrs = new List<ConnectionStrings>();
             connStrs.Add(new ConnectionStrings("Центральный", "Server=tcp:192.168.209.208, 1433; Database=base_cen;User Id=sa; Password=jlyjjryj;"));
@@ -36,11 +41,9 @@ namespace OldOneWinDB.Controllers
             connStrs.Add(new ConnectionStrings("Первомайский", "Server=tcp:192.168.209.208, 1433; Database=base_per;User Id=sa; Password=jlyjjryj;"));
             connStrs.Add(new ConnectionStrings("Советский", "Server=tcp:192.168.209.208, 1433; Database=base_sov;User Id=sa; Password=jlyjjryj;"));
             connStrs.Add(new ConnectionStrings("Заводской", "Server=tcp:192.168.209.208, 1433; Database=base_zav;User Id=sa; Password=jlyjjryj;"));
-
+            _hostingEnvironment = hostingEnvironment;
         }
-       // baseContext db;
-
-       
+      
         public IActionResult Index()
         {
 
@@ -49,72 +52,194 @@ namespace OldOneWinDB.Controllers
             _cache.Remove("AllRegList");
             HttpContext.Session.Remove("Year");
             ViewBag.connStrs = connStrs;
-
-           
-
             return View();
         }
 
         public IActionResult SelectYear(ConnectionStrings model)
         {
-            _cache.Remove("RegList");
-            _cache.Remove("AllRegList");
-            HttpContext.Session.Remove("Year");
+            if (model.AreaName == null && model.ConnectionString == null && _cache.Get("ConnectionString") == null)
+                return RedirectToAction("Index");
+            _cache.Remove("SelectedPeripod");
             if (_cache.Get("ConnectionString")== null)
             {
                 model = connStrs.FirstOrDefault(x => x.AreaName == model.AreaName);
                 _cache.Set("ConnectionString", model);
             }
-
-            var Years = new List<SelectPeriodModel>();
-            Years.Add(new SelectPeriodModel("2006"));
-            Years.Add(new SelectPeriodModel("2007"));
-            Years.Add(new SelectPeriodModel("2008"));
-            Years.Add(new SelectPeriodModel("2009"));
-            Years.Add(new SelectPeriodModel("2010"));
-            Years.Add(new SelectPeriodModel("2011"));
-            Years.Add(new SelectPeriodModel("2012"));
-            Years.Add(new SelectPeriodModel("2013"));
-            Years.Add(new SelectPeriodModel("2014"));
-            Years.Add(new SelectPeriodModel("2015"));
-            ViewBag.Years = Years;
+            List<string> years = new List<string>();
+            years.Add("2006");
+            years.Add("2007");
+            years.Add("2008");
+            years.Add("2009");
+            years.Add("2010");
+            years.Add("2011");
+            years.Add("2012");
+            years.Add("2013");
+            years.Add("2014");
+            years.Add("2015");         
+            ViewBag.Years = years;
             return View();
         }
+
         public IActionResult FindForm(SelectPeriodModel model)
         {
-            
-            _cache.Remove("RegList");
-            if (String.IsNullOrEmpty(HttpContext.Session.GetString("Year")))
-            {
-                _cache.Remove("AllRegList");
-                list = GetRegistrations(model.Year);
-                list = list.OrderBy(x => x.GettingDate).ToList();
-                _cache.Set("AllRegList", list);
-                HttpContext.Session.SetString("Year", model.Year);
-            }
-
-
+            if (_cache.Get("ConnectionString") == null)
+                return RedirectToAction("Index");
+            if (model.BeginYear == null && model.EndYear == null && (SelectPeriodModel)_cache.Get("SelectedPeripod") == null)
+                return RedirectToAction("SelectYear", new { model = _cache.Get("ConnectionString") });
+                List<TblDocRegistry> parentsList = GetDocRegistries().Where(x => x.ParrentId == null).OrderBy(x => x.RegName).ToList();
+            ViewBag.parentsList = parentsList;
+            //list = GetRegistrationsList(model);
+            //list = list.OrderBy(x => x.GettingDate).ToList();
+            if ((SelectPeriodModel)_cache.Get("SelectedPeripod") != null)            
+                _cache.Remove("FindParamsModel");           
+            else
+                _cache.Set("SelectedPeripod", model);
             return View();
         }
-        public List<TblRegistration> GetRegistrations(string Year)
+
+        public IActionResult getRegListAjax(int? id)
         {
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            {
+                var res = GetRegistrationsViewModelsList(GetRegistrationsList(id.Value));
+                return PartialView("_RegistrationItems", res);
+            }
+            return PartialView("_RegistrationItems");
+        }
+
+        public IActionResult RegList(FindParamsModel model, int? id)
+        {
+            if (model == null)
+            {
+                if (_cache.Get("ConnectionString") == null)
+                    return RedirectToAction("Index");
+            }
+            _cache.Set("FindParamsModel", model);
+            return View(GetRegistrationsViewModelsList(GetRegistrationsList()));
+        }
+
+        public IActionResult RegCard(Guid RegistrationID)
+        {
+            System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("ru-RU");
+            return View(GetRegistrationItem(RegistrationID));
+        }
+
+        public IActionResult Error()
+        {
+            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+        }
+
+        public async Task<IActionResult> GetRegCard(Guid RegistrationID)
+        {
+            var model = GetRegistrationItem(RegistrationID);
+            var path = Path.Combine(Directory.GetCurrentDirectory(), "temp", CreateRegCard(model));
+            var memory = new MemoryStream();
+            using (var stream = new FileStream(path, FileMode.Open))
+            {
+                await stream.CopyToAsync(memory);
+            }
+            memory.Position = 0;
+            return File(memory, GetContentType(path), Path.GetFileName(path));
+        }
+
+
+        string getRegistrationListSQLQuery()
+        {
+            FindParamsModel findParamsModel = (FindParamsModel)_cache.Get("FindParamsModel");
+            SelectPeriodModel selectPeriodModel = (SelectPeriodModel)_cache.Get("SelectedPeripod");
+            string sqlExpression = String.Format("SELECT * FROM tblRegistration WHERE GettingDate > '1.1.{0}' AND GettingDate < '31.12.{1}'", selectPeriodModel.BeginYear, selectPeriodModel.EndYear);
+
+            if (findParamsModel.DocNo != null && findParamsModel.DocNo != 0)
+            {
+                sqlExpression = sqlExpression + String.Format("AND {0} = {1} ", "DocNo", findParamsModel.DocNo);
+            }
+            if (!String.IsNullOrEmpty(findParamsModel.Fname))
+            {
+                sqlExpression = sqlExpression + String.Format("AND {0} = '{1}' ", "Fname", findParamsModel.Fname);
+            }
+            if (!String.IsNullOrEmpty(findParamsModel.Lname))
+            {
+                sqlExpression = sqlExpression + String.Format("AND {0} = '{1}' ", "Lname", findParamsModel.Lname);
+            }
+            if (!String.IsNullOrEmpty(findParamsModel.Mname))
+            {
+                sqlExpression = sqlExpression + String.Format("AND {0} = '{1}' ", "Mname", findParamsModel.Mname);
+            }
+            if (!String.IsNullOrEmpty(findParamsModel.Adres))
+            {
+                sqlExpression = sqlExpression + String.Format("AND {0} = '{1}' ", "Adres", findParamsModel.Adres);
+            }
+            if (findParamsModel.StartOutDeptDate != null && findParamsModel.StartOutDeptDate != new DateTime(1, 1, 1))
+            {
+                sqlExpression = sqlExpression + String.Format("AND {0} >= '{1}' ", "OutDeptDate", findParamsModel.StartOutDeptDate.ToShortDateString());
+            }
+            if (findParamsModel.EndOutDeptDate != null && findParamsModel.EndOutDeptDate != new DateTime(1, 1, 1))
+            {
+                sqlExpression = sqlExpression + String.Format("AND {0} <= '{1}' ", "OutDeptDate", findParamsModel.EndOutDeptDate.ToShortDateString());
+            }
+            if (findParamsModel.StartReturnInDeptDate != null && findParamsModel.StartReturnInDeptDate != new DateTime(1, 1, 1))
+            {
+                sqlExpression = sqlExpression + String.Format("AND {0} >= '{1}' ", "ReturnInDeptDate", findParamsModel.StartReturnInDeptDate.ToShortDateString());
+            }
+            if (findParamsModel.EndReturnInDeptDate != null && findParamsModel.EndReturnInDeptDate != new DateTime(1, 1, 1))
+            {
+                sqlExpression = sqlExpression + String.Format("AND {0} <= '{1}' ", "ReturnInDeptDate", findParamsModel.EndReturnInDeptDate.ToShortDateString());
+            }
+            if (findParamsModel.StartIssueDate != null && findParamsModel.StartIssueDate != new DateTime(1, 1, 1))
+            {
+                sqlExpression = sqlExpression + String.Format("AND {0} >= '{1}' ", "IssueDate", findParamsModel.StartIssueDate.ToShortDateString());
+            }
+            if (findParamsModel.EndIssueDate != null && findParamsModel.EndIssueDate != new DateTime(1, 1, 1))
+            {
+                sqlExpression = sqlExpression + String.Format("AND {0} <= '{1}' ", "IssueDate", findParamsModel.EndIssueDate.ToShortDateString());
+            }
+            if (findParamsModel.StartMustBeReadyDate != null && findParamsModel.StartMustBeReadyDate != new DateTime(1, 1, 1))
+            {
+                sqlExpression = sqlExpression + String.Format("AND {0} >= '{1}' ", "MustBeReadyDate", findParamsModel.StartMustBeReadyDate.ToShortDateString());
+            }
+            if (findParamsModel.EndMustBeReadyDate != null && findParamsModel.EndMustBeReadyDate != new DateTime(1, 1, 1))
+            {
+                sqlExpression = sqlExpression + String.Format("AND {0} <= '{1}' ", "MustBeReadyDate", findParamsModel.EndMustBeReadyDate.ToShortDateString());
+            }
+            if (findParamsModel.DateSsolutions != null && findParamsModel.DateSsolutions != new DateTime(1, 1, 1))
+            {
+                sqlExpression = sqlExpression + String.Format("AND {0} = '{1}' ", "DateSsolutions", findParamsModel.DateSsolutions.Value.ToShortDateString());
+            }
+            if (!String.IsNullOrEmpty(findParamsModel.NumberSolutions))
+            {
+                sqlExpression = sqlExpression + String.Format("AND {0} = '{1}' ", "NumberSolutions", findParamsModel.NumberSolutions);
+            }
+            if (findParamsModel.ResultType != null)
+            {
+                sqlExpression = sqlExpression + String.Format("AND {0} = {1} ", "ResultType", Convert.ToInt32(findParamsModel.ResultType.Value));
+            }
+            if (findParamsModel.ProcedureId != null && findParamsModel.ProcedureId != Guid.Empty)
+            {
+                sqlExpression = sqlExpression + String.Format("AND {0} = '{1}' ", "RegID", findParamsModel.ProcedureId.ToString());
+            }
+            sqlExpression = sqlExpression + " order by GettingDate";
+
+            return sqlExpression;
+        }
+
+
+        List<TblRegistration> getRegistrationListExecuteSqlQuery(string query)
+        {
+            List<TblRegistration> result = new List<TblRegistration>();
+            List<TblDocRegistry> tblDocRegistries = GetDocRegistries();
             ConnectionStrings connString = (ConnectionStrings)_cache.Get("ConnectionString");
             string connectionString = connString.ConnectionString;
-            List<TblRegistration> result = new List<TblRegistration>();
-            string sqlExpression = String.Format("SELECT * FROM tblRegistration WHERE GettingDate > '1.1.{0}' AND GettingDate < '31.12.{0}'", Year);
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 connection.Open();
-                SqlCommand command = new SqlCommand(sqlExpression, connection);
+                SqlCommand command = new SqlCommand(query, connection);
                 SqlDataReader reader = command.ExecuteReader();
-
                 if (reader.HasRows) // если есть данные
-                {             
+                {
                     while (reader.Read()) // построчно считываем данные
                     {
                         TblRegistration tblRegistration = new TblRegistration();
                         System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("ru-RU");
-
                         tblRegistration.RegistrationId = reader.GetGuid(0);
                         tblRegistration.Fname = (reader["Fname"] == DBNull.Value) ? null : reader["Fname"].ToString();
                         tblRegistration.Mname = (reader["Mname"] == DBNull.Value) ? null : reader["Mname"].ToString();
@@ -136,13 +261,12 @@ namespace OldOneWinDB.Controllers
                         tblRegistration.MustBeReadyDate = (reader["MustBeReadyDate"] == DBNull.Value) ? null : (DateTime?)reader["MustBeReadyDate"];
                         tblRegistration.ResultType = (reader["ResultType"] == DBNull.Value) ? null : (bool?)reader["ResultType"];
                         tblRegistration.Deleted = reader.GetBoolean(20);
-                           tblRegistration.State = (reader["State"] == DBNull.Value) ? null : (byte?)reader["State"];
+                        tblRegistration.State = (reader["State"] == DBNull.Value) ? null : (byte?)reader["State"];
                         tblRegistration.Notes = reader.GetString(22);
-                           tblRegistration.OrderNo = reader.GetInt32(24);
-                           tblRegistration.DocNo = (reader["DocNo"] == DBNull.Value) ? null : (int?)reader["DocNo"];
-                        //      tblRegistration.Nprav = reader.GetString(26);
-                        tblRegistration.KolB = (reader["KolB"] == DBNull.Value) ? null: (byte?)reader["KolB"];// (byte?)reader.GetValue(29);
-                           tblRegistration.Organiz = (reader["Organiz"] == DBNull.Value) ? null : reader["Organiz"].ToString();
+                        tblRegistration.OrderNo = reader.GetInt32(24);
+                        tblRegistration.DocNo = (reader["DocNo"] == DBNull.Value) ? null : (int?)reader["DocNo"];
+                        tblRegistration.KolB = (reader["KolB"] == DBNull.Value) ? null : (byte?)reader["KolB"];
+                        tblRegistration.Organiz = (reader["Organiz"] == DBNull.Value) ? null : reader["Organiz"].ToString();
                         tblRegistration.Vid = (reader["Vid"] == DBNull.Value) ? null : (byte?)reader["Vid"];
                         tblRegistration.Room = (reader["Room"] == DBNull.Value) ? null : (byte?)reader["Room"];
                         tblRegistration.KolList = (reader["KolList"] == DBNull.Value) ? null : (byte?)reader["KolList"];
@@ -156,16 +280,52 @@ namespace OldOneWinDB.Controllers
                         tblRegistration.CaseNumber = (reader["CaseNumber"] == DBNull.Value) ? null : reader["CaseNumber"].ToString();
                         tblRegistration.KolListCase = (reader["KolListCase"] == DBNull.Value) ? null : (byte?)reader["KolListCase"];
 
-
+                        tblRegistration.TblDocRegistry = tblDocRegistries.Where(x => x.RegId == tblRegistration.RegId).FirstOrDefault();
+                        if (tblRegistration.TblDocRegistry != null)
+                            tblRegistration.TblDocRegistry.TblOrganization = GetTblOrganizations().FirstOrDefault(x => x.DeptId == tblRegistration.TblDocRegistry.DeptId);
                         result.Add(tblRegistration);
-
-
                     }
                 }
-               
                 reader.Close();
             }
+            return result;
+        }
 
+        List<TblRegistration> GetRegistrationsList(int page = 0)
+        {
+            string sqlExpression = getRegistrationListSQLQuery();
+            sqlExpression = sqlExpression + String.Format(" OFFSET {0} row Fetch First 50 rows only", page == 0 ? 0 : page * 50);
+            return getRegistrationListExecuteSqlQuery(sqlExpression);
+        }
+
+        List<TblOrganization> GetTblOrganizations()
+        {
+            ConnectionStrings connString = (ConnectionStrings)_cache.Get("ConnectionString");
+            string connectionString = connString.ConnectionString;
+            List<TblOrganization> result = new List<TblOrganization>();
+            string sqlExpression = String.Format("SELECT * FROM TblOrganization");
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                SqlCommand command = new SqlCommand(sqlExpression, connection);
+                SqlDataReader reader = command.ExecuteReader();
+
+                if (reader.HasRows) // если есть данные
+                {
+                    while (reader.Read()) // построчно считываем данные
+                    {
+                        TblOrganization item = new TblOrganization();
+                        item.DeptId = reader.GetGuid(0);
+                        item.DeptName = reader.GetString(1);
+                        item.Address = reader.GetString(2);
+                        item.Cabinet = reader.GetString(3);
+                        item.PhoneNo = reader.GetString(4);
+                        item.Notes = reader.GetString(5);
+                        result.Add(item);
+                    }
+                }
+                reader.Close();
+            }
             return result;
         }
 
@@ -188,6 +348,16 @@ namespace OldOneWinDB.Controllers
                         TblDocRegistry item = new TblDocRegistry();
                         item.RegId = reader.GetGuid(0);
                         item.RegName = reader.GetString(1);
+
+                        if (reader.IsDBNull(2))
+                            item.ParrentId = null;
+                        else
+                            item.ParrentId = reader.GetGuid(2);
+                        item.IssueTerms = reader.GetInt32(3);
+                        if (!reader.IsDBNull(4))
+                            item.DeptId = reader.GetGuid(4);
+                        else
+                            item.DeptId = Guid.Empty;
                         result.Add(item);
                     }
                 }
@@ -196,221 +366,330 @@ namespace OldOneWinDB.Controllers
             return result;
         }
 
-        public IActionResult getRegListAjax(int? id)
+        public List<TblDocRegistry> GetDocRegistries(string parentID)
         {
-            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
-            {
-                int page = id ?? 0;
-                var itemsToSkip = page * pageSize;
-                List<TblRegistration> tempRegistrationsList = (List<TblRegistration>)_cache.Get("RegList");
-                tempRegistrationsList = tempRegistrationsList.Skip(itemsToSkip).Take(pageSize).ToList();
-                var res = GetRegistrationsViewModelsList(tempRegistrationsList);
-                return PartialView("_RegistrationItems", res);
-            }
-            return PartialView("_RegistrationItems");
-        }
-        public IActionResult RegList(FindParamsModel model, int? id)
-        {
-          
-            //if ((List<TblRegistration>)_cache.Get("RegList") != null)
-            //{
-            //    return View(GetRegistrationsViewModelsList((List<TblRegistration>)_cache.Get("RegList")).Take(pageSize));
-            //}
-            
-            var result = (List<TblRegistration>)_cache.Get("AllRegList");
-         
-            if (model.DocNo != null && model.DocNo != 0)
-            {
-                result = result.Where(x => x.DocNo == model.DocNo).ToList();
-            }
-            if (!String.IsNullOrEmpty(model.Fname))
-            {
-                result = result.Where(x => x.Fname.Contains(model.Fname)).ToList();
-            }
-            if (!String.IsNullOrEmpty(model.Lname))
-            {
-                result = result.Where(x => x.Fname.Contains(model.Lname)).ToList();
-            }
-            if (!String.IsNullOrEmpty(model.Mname))
-            {
-                result = result.Where(x => x.Fname.Contains(model.Mname)).ToList();
-            }
-            if (!String.IsNullOrEmpty(model.Adres))
-            {
-                result = result.Where(x => x.Address.Contains(model.Adres)).ToList();
-            }
-            if (model.StartOutDeptDate != null && model.StartOutDeptDate != new DateTime(1, 1,1))
-            {
-                result = result.Where(x => x.OutDeptDate > model.StartOutDeptDate).ToList();
-            }
-            if (model.EndOutDeptDate != null && model.EndOutDeptDate != new DateTime(1, 1, 1))
-            {
-                result = result.Where(x => x.OutDeptDate < model.EndOutDeptDate).ToList();
-            }
-
-            if (model.StartReturnInDeptDate != null && model.StartReturnInDeptDate != new DateTime(1, 1, 1))
-            {
-                result = result.Where(x => x.ReturnInDeptDate > model.StartReturnInDeptDate).ToList();
-            }
-            if (model.EndReturnInDeptDate != null && model.EndReturnInDeptDate != new DateTime(1, 1, 1))
-            {
-                result = result.Where(x => x.ReturnInDeptDate < model.EndReturnInDeptDate).ToList();
-            }
-
-            if (model.StartIssueDate != null && model.StartIssueDate != new DateTime(1, 1, 1))
-            {
-                result = result.Where(x => x.IssueDate > model.StartIssueDate).ToList();
-            }
-            if (model.EndIssueDate != null && model.EndIssueDate != new DateTime(1, 1, 1))
-            {
-                result = result.Where(x => x.IssueDate < model.EndIssueDate).ToList();
-            }
-
-            if (model.StartMustBeReadyDate != null && model.StartMustBeReadyDate != new DateTime(1, 1, 1))
-            {
-                result = result.Where(x => x.MustBeReadyDate > model.StartMustBeReadyDate).ToList();
-            }
-            if (model.EndMustBeReadyDate != null && model.EndMustBeReadyDate != new DateTime(1, 1, 1))
-            {
-                result = result.Where(x => x.MustBeReadyDate < model.EndMustBeReadyDate).ToList();
-            }
-
-            if (model.DateSsolutions != null && model.DateSsolutions != new DateTime(1, 1, 1))
-            {
-                result = result.Where(x => x.DateSsolutions == model.DateSsolutions).ToList();
-            }
-            if (!String.IsNullOrEmpty(model.NumberSolutions))
-            {
-                result = result.Where(x => x.NumberSolutions == model.NumberSolutions).ToList();
-            }
-            _cache.Set("RegList", result);
-            return View(GetRegistrationsViewModelsList(result.Take(pageSize).ToList()));
-            //using (SqlConnection connection = new SqlConnection(connectionString))
-            //{
-            //    try
-            //    {
-            //        connection.Open();
-            //        string sqlExpression = String.Format("SELECT GettingDate FROM Registration WHERE GettingDate >=CONVERT(date, '{0}-{1}-{2}') and GettingDate <= CONVERT(date, '{3}-{4}-{5}') {6}", beginDate.Year, beginDate.Month, beginDate.Day, endDate.Year, endDate.Month, endDate.Day,
-            //            String.IsNullOrEmpty(procedureName) ? "" : String.Format("and Number='{0}'", procedureName));
-            //        SqlCommand command = new SqlCommand(sqlExpression, connection);
-            //        SqlDataReader reader = command.ExecuteReader();
-            //        if (reader.HasRows)
-            //        {
-            //            while (reader.Read())
-            //            {
-            //                data.Add(reader.GetDateTime(0));
-            //            }
-            //        }
-            //    }
-            //    catch (Exception e)
-            //    {
-            //        MessageBox.Show(e.Message, "Ошибка");
-            //    }
-            //    finally
-            //    {
-            //        connection.Close();
-            //    }
-            //}
-
-
-
-
-
-
-
-
-            //if (HttpContext.Session.GetString("isLoad") == null)
-            //{
-            //    list = db.TblRegistration.Where(x => x.GettingDate > new DateTime(2010, 7, 7) && x.GettingDate < new DateTime(2011, 1, 1)).ToList();
-            //    list = list.OrderBy(x => x.DocNo).ToList();
-            //    _cache.Set("1", list);
-
-            //    HttpContext.Session.SetString("isLoad", "True");
-            //}
-            //else
-            //{
-            //    list = (List<TblRegistration>)_cache.Get("1");
-            //}
-
-            //int page = id ?? 0;
-            //var itemsToSkip = page * pageSize;
-
-
-            //if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
-            //{
-            //    try
-            //    {
-
-            //        var model = GetRegistrationsViewModelsList(list
-            //            .Skip(itemsToSkip)
-            //            .Take(pageSize)
-            //            .ToList());
-            //        return PartialView("_RegistrationItems", model);
-            //    }
-            //    catch (Exception e)
-            //    {
-
-            //    }
-            //}
-            //return View(GetRegistrationsViewModelsList(
-            //   list
-            //    .Take(pageSize)
-            //    .ToList()));
-            //return View();
-        }
-        public IActionResult RegCard(Guid RegistrationID)
-        {
-            System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("ru-RU");
-            List<TblRegistration> tblRegistrations = (List<TblRegistration>)_cache.Get("AllRegList"); //...FirstOrDefault(x => x.RegistrationId == RegistrationID);
-            var model = tblRegistrations.FirstOrDefault(x => x.RegistrationId == RegistrationID);
-            model.TblDocRegistry = GetDocRegistries().FirstOrDefault(x => x.RegId == model.RegId);
-            return View(model);
-        }
-        public IActionResult About()
-        {
-            ViewData["Message"] = "Your application description page.";
-
-            return View();
+            return GetDocRegistries().Where(x => x.ParrentId.ToString() == parentID).ToList();
         }
 
-        public IActionResult Contact()
-        {
-            ViewData["Message"] = "Your contact page.";
+        
 
-            return View();
+        TblRegistration GetRegistrationItem(Guid RegistrationID)
+        {
+            System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("ru-RU");           
+            return getRegistrationListExecuteSqlQuery(String.Format("SELECT * FROM tblRegistration WHERE registrationID='{0}' ", RegistrationID.ToString())).First();
         }
 
-        public IActionResult Error()
-        {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
-        }
-        private List<RegistrationsViewModel> GetItemsPage(List<TblRegistration> regLis, int page = 1)
-        {
-            var itemsToSkip = page * pageSize;
-
-            return GetRegistrationsViewModelsList(regLis).OrderBy(t => t.DocNo).Skip(itemsToSkip).
-                Take(pageSize).ToList();
-        }
-        public List<RegistrationsViewModel> GetRegistrationsViewModelsList(List<TblRegistration> regList)
+        List<RegistrationsViewModel> GetRegistrationsViewModelsList(List<TblRegistration> regList)
         {
             System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("ru-RU");
             List<RegistrationsViewModel> result = new List<RegistrationsViewModel>();
             foreach (var item in regList)
             {
-                RegistrationsViewModel registrationsViewModel = item.GetRegistrationsViewModel();
-                if (item.RegId != null)
-                {
-                    var docRegistry = GetDocRegistries().FirstOrDefault(x => x.RegId == item.RegId);
-                    if (docRegistry != null)
-                        if (docRegistry.RegName != null)
-                            registrationsViewModel.RegName = GetDocRegistries().FirstOrDefault(x => x.RegId == item.RegId).RegName;
-                  
-                }
+                RegistrationsViewModel registrationsViewModel = item.GetRegistrationsViewModel();              
                 result.Add(registrationsViewModel);
             }
             return result;
         }
 
-     
+
+
+        protected string CreateRegCard(TblRegistration registration)
+        {
+            string initialPath= _hostingEnvironment.ContentRootPath + "/Template/Регистрационная карта.docx";
+            string targetfile = _hostingEnvironment.ContentRootPath + "/temp/" + registration.RegistrationId.ToString() + "_РК.docx";
+            string resultFileName = registration.RegistrationId.ToString() + "_РК.docx";
+            System.IO.File.Copy(initialPath, targetfile, true);
+            using (WordprocessingDocument document = WordprocessingDocument.Open(targetfile, true))
+            {
+                MainDocumentPart mainPart = document.MainDocumentPart;
+                var fields = mainPart.Document.Body.Descendants<FormFieldData>();
+                var a = getDictionaryOfRegistration(registration);
+                foreach (var item in getDictionaryOfRegistration(registration))
+                {
+                    foreach (var field in fields)
+                    {
+                        if (((FormFieldName)field.FirstChild).Val.InnerText.Equals(item.Key) ||
+                            ((FormFieldName)field.FirstChild).Val.InnerText.Equals(item.Key + "1"))
+                        {
+                            TextInput text = field.Descendants<TextInput>().First();
+
+                            SetFormFieldValue(text, String.IsNullOrEmpty(item.Value) ? "" : item.Value);
+                        }
+                    }
+                }
+                string docText = null;
+                using (StreamReader sr = new StreamReader(document.MainDocumentPart.GetStream()))
+                {
+                    docText = sr.ReadToEnd();
+                }
+                var DictionaryOfRegistration = getDictionaryOfRegistration(registration);
+                foreach (var item in DictionaryOfRegistration)
+                {
+                    docText = docText.Replace(item.Key, item.Value);
+                }
+                using (StreamWriter sw = new StreamWriter(document.MainDocumentPart.GetStream(FileMode.Create)))
+                {
+                    sw.Write(docText);
+                }
+            }
+            return resultFileName;
+
+        }
+
+        Dictionary<string, string> getDictionaryOfRegistration(TblRegistration registration)
+        {
+            Dictionary<string, string> dictionary = new Dictionary<string, string>()
+            {
+                {"DocNo", registration.DocNo.ToString()},
+                {"LName", registration.Lname},
+                {"MName", registration.Mname},
+                {"FName", registration.Fname},
+               
+              
+                {"Address", registration.Address + ", д." + registration.Home + ", кв." + registration.Flat},
+
+                {"PhoneNo", registration.PhoneNo},
+                {"PhoneNO", registration.PhoneNo},
+                {"StatementForm", registration.StatementForm},
+                {"GettingDate", registration.GettingDate.Value.ToShortDateString()},
+                {"kollist", registration.KolList != null ? registration.KolList.ToString() : ""}, //?
+                {"kolListPril", registration.KolListPril != null ? registration.KolListPril.ToString() : ""}, //?
+                {
+                    "RegName",registration.TblDocRegistry.RegName
+                 },
+                {"DeptName",
+                    String.IsNullOrEmpty(registration.TblDocRegistry.TblOrganization.DeptName)? " ":
+                    registration.TblDocRegistry.TblOrganization.DeptName
+                },
+                {"DeptPhoneNo",
+                    String.IsNullOrEmpty(registration.TblDocRegistry.TblOrganization.PhoneNo)? " ":
+                    registration.TblDocRegistry.TblOrganization.PhoneNo
+                },
+                {"Isp_address",
+                    String.IsNullOrEmpty(registration.TblDocRegistry.TblOrganization.Address)? " ":
+                    registration.TblDocRegistry.TblOrganization.Address
+                },
+                {"Isp_kab",
+                    String.IsNullOrEmpty(registration.TblDocRegistry.TblOrganization.Cabinet)? " ":
+                    registration.TblDocRegistry.TblOrganization.Cabinet
+                },
+                { "Isp_prim",
+                    String.IsNullOrEmpty(registration.TblDocRegistry.TblOrganization.Notes)? " ":
+                    registration.TblDocRegistry.TblOrganization.Notes
+                },
+                {"Proceedings", registration.Proceedings},
+                {"LongReadyDate", registration.MustBeReadyDate.Value.ToShortDateString()},
+                {"MustBeReadyDate", registration.MustBeReadyDate.Value.ToShortDateString()},
+                {
+                    "DateSsolutions",
+                    registration.DateSsolutions != null ? registration.DateSsolutions.Value.ToShortDateString() : ""
+                },
+                {"NamberSolutions", registration.NumberSolutions},
+                {"ResultType", registration.ResultType != null ? registration.ResultType == true ? "Положительно" : "Отрицательно" : ""},
+
+                {
+                    "OutDeptDate",
+                    registration.OutDeptDate != null ? registration.OutDeptDate.Value.ToShortDateString() : ""
+                },
+                {"IssueDate", registration.IssueDate != null ? registration.IssueDate.Value.ToShortDateString() : ""},
+                {"EvaluationNotificati", registration.EvaluationNotification}, // Имя поля в ворде имеет ограничение по количеству символов 
+                {"CaseNamber", registration.CaseNumber},
+                {"LoListCase", registration.KolListCase != null ? registration.KolListCase.ToString() : ""},
+               
+
+              
+            };
+            return dictionary;
+        }
+
+        private static void SetFormFieldValue(TextInput textInput, string value)
+        {  // Code for http://stackoverflow.com/a/40081925/3103123
+
+            if (value == null) // Reset formfield using default if set.
+            {
+                if (textInput.DefaultTextBoxFormFieldString != null && textInput.DefaultTextBoxFormFieldString.Val.HasValue)
+                    value = textInput.DefaultTextBoxFormFieldString.Val.Value;
+            }
+
+            // Enforce max length.
+            short maxLength = 0; // Unlimited
+            if (textInput.MaxLength != null && textInput.MaxLength.Val.HasValue)
+                maxLength = textInput.MaxLength.Val.Value;
+            if (value != null && maxLength > 0 && value.Length > maxLength)
+                value = value.Substring(0, maxLength);
+
+            // Not enforcing TextBoxFormFieldType (read documentation...).
+            // Just note that the Word instance may modify the value of a formfield when user leave it based on TextBoxFormFieldType and Format.
+            // A curious example:
+            // Type Number, format "# ##0,00".
+            // Set value to "2016 was the warmest year ever, at least since 1999.".
+            // Open the document and select the field then tab out of it.
+            // Value now is "2 016 tht,tt" (the logic behind this escapes me).
+
+            // Format value. (Only able to handle formfields with textboxformfieldtype regular.)
+            if (textInput.TextBoxFormFieldType != null
+            && textInput.TextBoxFormFieldType.Val.HasValue
+            && textInput.TextBoxFormFieldType.Val.Value != TextBoxFormFieldValues.Regular)
+                throw new ApplicationException("SetFormField: Unsupported textboxformfieldtype, only regular is handled.\r\n" + textInput.Parent.OuterXml);
+            if (!string.IsNullOrWhiteSpace(value)
+            && textInput.Format != null
+            && textInput.Format.Val.HasValue)
+            {
+                switch (textInput.Format.Val.Value)
+                {
+                    case "Uppercase":
+                        value = value.ToUpperInvariant();
+                        break;
+                    case "Lowercase":
+                        value = value.ToLowerInvariant();
+                        break;
+                    case "First capital":
+                        value = value[0].ToString().ToUpperInvariant() + value.Substring(1);
+                        break;
+                    case "Title case":
+                        value = System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(value);
+                        break;
+                    default: // ignoring any other values (not supposed to be any)
+                        break;
+                }
+            }
+
+            // Find run containing "separate" fieldchar.
+            Run rTextInput = textInput.Ancestors<Run>().FirstOrDefault();
+            if (rTextInput == null) throw new ApplicationException("SetFormField: Did not find run containing textinput.\r\n" + textInput.Parent.OuterXml);
+            Run rSeparate = rTextInput.ElementsAfter().FirstOrDefault(ru =>
+               ru.GetType() == typeof(Run)
+               && ru.Elements<FieldChar>().FirstOrDefault(fc =>
+                  fc.FieldCharType == FieldCharValues.Separate)
+                  != null) as Run;
+            if (rSeparate == null) throw new ApplicationException("SetFormField: Did not find run containing separate.\r\n" + textInput.Parent.OuterXml);
+
+            // Find run containg "end" fieldchar.
+            Run rEnd = rTextInput.ElementsAfter().FirstOrDefault(ru =>
+               ru.GetType() == typeof(Run)
+               && ru.Elements<FieldChar>().FirstOrDefault(fc =>
+                  fc.FieldCharType == FieldCharValues.End)
+                  != null) as Run;
+            if (rEnd == null) // Formfield value contains paragraph(s)
+            {
+                Paragraph p = rSeparate.Parent as Paragraph;
+                Paragraph pEnd = p.ElementsAfter().FirstOrDefault(pa =>
+                pa.GetType() == typeof(Paragraph)
+                && pa.Elements<Run>().FirstOrDefault(ru =>
+                   ru.Elements<FieldChar>().FirstOrDefault(fc =>
+                      fc.FieldCharType == FieldCharValues.End)
+                      != null)
+                   != null) as Paragraph;
+                if (pEnd == null) throw new ApplicationException("SetFormField: Did not find paragraph containing end.\r\n" + textInput.Parent.OuterXml);
+                rEnd = pEnd.Elements<Run>().FirstOrDefault(ru =>
+                   ru.Elements<FieldChar>().FirstOrDefault(fc =>
+                      fc.FieldCharType == FieldCharValues.End)
+                      != null);
+            }
+
+            // Remove any existing value.
+
+            Run rFirst = rSeparate.NextSibling<Run>();
+            if (rFirst == null || rFirst == rEnd)
+            {
+                RunProperties rPr = rTextInput.GetFirstChild<RunProperties>();
+                if (rPr != null) rPr = rPr.CloneNode(true) as RunProperties;
+                rFirst = rSeparate.InsertAfterSelf<Run>(new Run(new[] { rPr }));
+            }
+            rFirst.RemoveAllChildren<Text>();
+
+            Run r = rFirst.NextSibling<Run>();
+            while (r != rEnd)
+            {
+                if (r != null)
+                {
+                    r.Remove();
+                    r = rFirst.NextSibling<Run>();
+                }
+                else // next paragraph
+                {
+                    Paragraph p = rFirst.Parent.NextSibling<Paragraph>();
+                    if (p == null) throw new ApplicationException("SetFormField: Did not find next paragraph prior to or containing end.\r\n" + textInput.Parent.OuterXml);
+                    r = p.GetFirstChild<Run>();
+                    if (r == null)
+                    {
+                        // No runs left in paragraph, move other content to end of paragraph containing "separate" fieldchar.
+                        p.Remove();
+                        while (p.FirstChild != null)
+                        {
+                            OpenXmlElement oxe = p.FirstChild;
+                            oxe.Remove();
+                            if (oxe.GetType() == typeof(ParagraphProperties)) continue;
+                            rSeparate.Parent.AppendChild(oxe);
+                        }
+                    }
+                }
+            }
+            if (rEnd.Parent != rSeparate.Parent)
+            {
+                // Merge paragraph containing "end" fieldchar with paragraph containing "separate" fieldchar.
+                Paragraph p = rEnd.Parent as Paragraph;
+                p.Remove();
+                while (p.FirstChild != null)
+                {
+                    OpenXmlElement oxe = p.FirstChild;
+                    oxe.Remove();
+                    if (oxe.GetType() == typeof(ParagraphProperties)) continue;
+                    rSeparate.Parent.AppendChild(oxe);
+                }
+            }
+
+            // Set new value.
+
+            if (value != null)
+            {
+                // Word API use \v internally for newline and \r for para. We treat \v, \r\n, and \n as newline (Break).
+                string[] lines = value.Replace("\r\n", "\n").Split(new char[] { '\v', '\n', '\r' });
+                string line = lines[0];
+                Text text = rFirst.AppendChild<Text>(new Text(line));
+                if (line.StartsWith(" ") || line.EndsWith(" ")) text.SetAttribute(new OpenXmlAttribute("xml:space", null, "preserve"));
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    rFirst.AppendChild<Break>(new Break());
+                    line = lines[i];
+                    text = rFirst.AppendChild<Text>(new Text(lines[i]));
+                    if (line.StartsWith(" ") || line.EndsWith(" ")) text.SetAttribute(new OpenXmlAttribute("xml:space", null, "preserve"));
+                }
+            }
+            else
+            { // An empty formfield of type textinput got char 8194 times 5 or maxlength if maxlength is in the range 1 to 4.
+                short length = maxLength;
+                if (length == 0 || length > 5) length = 5;
+                rFirst.AppendChild(new Text(((char)8194).ToString()));
+                r = rFirst;
+                for (int i = 1; i < length; i++) r = r.InsertAfterSelf<Run>(r.CloneNode(true) as Run);
+            }
+        }
+
+        private string GetContentType(string path)
+        {
+            var types = GetMimeTypes();
+            var ext = Path.GetExtension(path).ToLowerInvariant();
+            return types[ext];
+        }
+
+        private Dictionary<string, string> GetMimeTypes()
+        {
+            return new Dictionary<string, string>
+            {
+                {".txt", "text/plain"},
+                {".pdf", "application/pdf"},
+                {".doc", "application/vnd.ms-word"},
+                {".docx", "application/vnd.ms-word"},
+                {".xls", "application/vnd.ms-excel"},
+                {".xlsx", "application/vnd.openxmlformatsfficedocument.spreadsheetml.sheet"},
+                {".png", "image/png"},
+                {".jpg", "image/jpeg"},
+                {".jpeg", "image/jpeg"},
+                {".gif", "image/gif"},
+                {".csv", "text/csv"}
+            };
+        }
+
     }
 }

@@ -7,10 +7,11 @@ namespace OldOneWinDB.Models
 {
     public class SelectPeriodModel
     {
-        public string Year { get; set; }
+        public string BeginYear { get; set; }
+        public string EndYear { get; set; }
         public SelectPeriodModel(string val)
         {
-            Year = val;
+            BeginYear = val;
         }
         public SelectPeriodModel()
         {
@@ -18,7 +19,7 @@ namespace OldOneWinDB.Models
         }
         public override string ToString()
         {
-            return Year;
+            return BeginYear;
         }
     }
 }

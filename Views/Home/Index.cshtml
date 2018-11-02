@@ -1,10 +1,11 @@
 ﻿@model OldOneWinDB.Models.ConnectionStrings
 <div>
     <h2>Выберите район</h2>
-    <form method="post" asp-controller="Home" asp-action="SelectYear" >
-        
-        <select asp-for="AreaName" asp-items='new SelectList(ViewBag.connStrs, "ConnectionString")' class="selectList"></select>
+    <form method="post" asp-controller="Home" asp-action="SelectYear"  >
+        <div class="form-inline">
+            <select asp-for="AreaName" asp-items='new SelectList(ViewBag.connStrs, "ConnectionString")' class="selectList form-control"></select>
 
-        <input type="submit" />
-    </form>
+            <input type="submit" class="btn btn-primary mb-4"/>
+            </div>
+</form>
 </div>

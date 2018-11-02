@@ -40,9 +40,19 @@ namespace OldOneWinDB.Models
         public DateTime EndMustBeReadyDate { get; set; }
         [Display(Name = "Дата решения")]
 
-
         public DateTime? DateSsolutions { get; set; }
         [Display(Name = "Номер решения")]
         public string NumberSolutions { get; set; }
+        [Display(Name ="Тип решения")]
+        public bool? ResultType { get; set; }
+        [Display(Name = "Раздел")]
+        public Guid SectionId { get; set; }
+        [Display(Name = "Процедура")]
+        public Guid ProcedureId { get; set; }
+
+        public FindParamsModel()
+        {
+            ProcedureId = Guid.Empty;
+        }
     }
 }

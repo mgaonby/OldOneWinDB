@@ -2,9 +2,10 @@
 <div>
     <h2>Выберите год</h2>
     <form method="post" asp-controller="Home" asp-action="FindForm">
-
-        <select asp-for="Year" asp-items='new SelectList(ViewBag.Years)' class="selectList"></select>
-
-        <input type="submit" value="Выбрать"/>
+        <div class="form-inline">
+            <select asp-for="BeginYear" asp-items='new SelectList(ViewBag.Years)' class="selectList form-control"></select>
+            <select asp-for="EndYear" asp-items='new SelectList(ViewBag.Years)' class="selectList form-control"></select>
+            <input type="submit" class="btn btn-primary" />
+            </div>
     </form>
 </div>

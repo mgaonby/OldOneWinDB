@@ -59,8 +59,8 @@ namespace OldOneWinDB.Models
         {
             return new RegistrationsViewModel
             {
-                Adres =  Address,
-                FullName = this.Mname + " " + this.Lname[0] + "." + this.Fname[0] + ".",
+                Adres = Address,
+                FullName = String.Format("{0} {1}. {2}.", this.Lname, this.Fname.Length != 0 ? this.Fname[0].ToString() : "", this.Mname.Length != 0 ? this.Mname[0].ToString() : ""),
                 GettingDate = this.GettingDate,
                 IssueDate = this.IssueDate,
                 MustBeReadyDate = this.MustBeReadyDate,
@@ -69,7 +69,8 @@ namespace OldOneWinDB.Models
                 RegistrationID = this.RegistrationId,
                 ReturnInDeptDate = this.ReturnInDeptDate,
                 State = this.State,
-                DocNo = this.DocNo
+                DocNo = this.DocNo,
+                ResultType = this.ResultType
             };
         }
     }

@@ -11,15 +11,15 @@
             Заявление №
             <span style="font-weight:bold"> @Model.DocNo </span>
             от<span id="showdatetime" style="font-weight:bold">
-    @{
-        if (Model.GettingDate != null)
-        {
-            <span> @Model.GettingDate.Value.ToShortDateString()</span>
-        }
+                @{
+                    if (Model.GettingDate != null)
+                    {
+                        <span> @Model.GettingDate.Value.ToShortDateString()</span>
+                    }
 
-    }
-  
-</span>
+                }
+
+            </span>
             <br />
 
             <b>Форма подачи:</b> @Model.StatementForm
@@ -130,10 +130,10 @@
                 <span> Отрицательно</span>
             }
         }
-         
+
         @if (!String.IsNullOrEmpty(Model.NumberSolutions))
         {
-            <b>№ решения </b> 
+            <b>№ решения </b>
             @Model.NumberSolutions
 
         }
@@ -145,8 +145,7 @@
         }
     </fieldset>
 
-
-        <br /><br />
-
+    <br /><br />
+    <a asp-area="" asp-controller="Home" asp-action="GetRegCard" asp-route-RegistrationID="@Model.RegistrationId">Регистрационная карта</a>
 </div>
 

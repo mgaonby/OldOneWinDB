@@ -1,60 +1,103 @@
 ﻿@model OldOneWinDB.Models.FindParamsModel
 <div>
     <br />
-    <form method="post" id="mainRecordForm" asp-action="RegList" asp-controller="Home">
-        <div>
-            <label asp-for="DocNo"></label><br />
-            <input asp-for="DocNo" />
-        </div>
-        <div>
-            <label asp-for="Fname"></label><br />
-            <input asp-for="Fname" />
-        </div>
-        <div>
-            <label asp-for="Lname"></label><br />
-            <input asp-for="Lname" />
-        </div>
+    <form method="post" id="mainRecordForm" asp-action="RegList" asp-controller="Home" >
+       
+            <div>
+                <div class="form-inline">
+                    <label asp-for="DocNo"></label><br />
+                    <input asp-for="DocNo" class="form-control" />
+                </div>
 
-        <div>
-            <label asp-for="Mname"></label><br />
-            <input asp-for="Mname" />
-        </div>
-        <div>
-            <label asp-for="Adres"></label><br />
-            <input asp-for="Adres" />
-        </div>  
-        <div>
-            <label asp-for="StartOutDeptDate"></label><br />
-            <input type="date" asp-for="StartOutDeptDate" />
-        </div>
-        <div>
-            <label asp-for="EndOutDeptDate"></label><br />
-            <input type="date" asp-for="EndOutDeptDate" />
-        </div>
-        <div>
-            <label asp-for="StartReturnInDeptDate"></label><br />
-            <input type="date" asp-for="StartReturnInDeptDate" />
-        </div>
-        <div>
-            <label asp-for="EndReturnInDeptDate"></label><br />
-            <input type="date" asp-for="EndReturnInDeptDate" />
-        </div>
-        <div>
-            <label asp-for="StartIssueDate"></label><br />
-            <input type="date" asp-for="StartIssueDate" />
-        </div>
-        <div>
-            <label asp-for="EndIssueDate"></label><br />
-            <input type="date" asp-for="EndIssueDate" />
-        </div>
-        <div>
-            <label asp-for="DateSsolutions"></label><br />
-            <input type="date" asp-for="DateSsolutions" />
-        </div>
+                <div class="form-inline">
+                    <label asp-for="Fname"></label><br />
+                    <input asp-for="Fname" class="form-control" />
+                </div>
+                <div class="form-inline">
+                    <label asp-for="Lname"></label><br />
+                    <input asp-for="Lname" class="form-control" />
+                </div>
 
+                <div class="form-inline">
+                    <label asp-for="Mname"></label><br />
+                    <input asp-for="Mname" class="form-control" />
+                </div>
+                <div class="form-inline">
+                    <label asp-for="Adres"></label><br />
+                    <input asp-for="Adres" class="form-control" />
+                </div>
+            </div>
+            <div>
+                <div class="form-inline">
+                    <label asp-for="StartOutDeptDate"></label><br />
+                    <input type="date" asp-for="StartOutDeptDate"  class="form-control"/> <b>по</b>
 
-        <div>
-            <input type="submit" value="Поиск" />
-        </div>
+                    <input type="date" asp-for="EndOutDeptDate"  class="form-control"/>
+                </div>
+
+                <div class="form-inline">
+                    <label asp-for="StartReturnInDeptDate"></label><br />
+                    <input type="date" asp-for="StartReturnInDeptDate" class="form-control" /> <b>по</b>
+                    <input type="date" asp-for="EndReturnInDeptDate" class="form-control" />
+                </div>
+               
+                <div class="form-inline">
+                    <label asp-for="StartIssueDate"></label><br />
+                    <input type="date" asp-for="StartIssueDate" class="form-control" /> <b>по</b>
+                    <input type="date" asp-for="EndIssueDate" class="form-control" />
+                </div>
+
+            </div>
+            <div class="form-inline">
+                <label asp-for="DateSsolutions"></label><br />
+                <input type="date" asp-for="DateSsolutions" class="form-control"/>
+            </div>
+            <div class="form-inline">
+                <label asp-for="NumberSolutions"></label><br />
+                <input asp-for="NumberSolutions" class="form-control"/>
+            </div>
+            <div class="form-inline">
+                <label asp-for="ResultType"></label><br />
+                <select asp-for="ResultType" class="selectList form-control">
+                    <option value="null" selected></option>
+                    <option value="true">Положительно</option>
+                    <option value="false">Отрицательно</option>
+                </select>
+            </div>
+            <div class="form-inline">
+                <label>Раздел</label><br />
+                <select asp-for="SectionId" asp-items='new SelectList(ViewBag.parentsList, "RegId", "RegName")' class="selectList form-control ">
+                    <option value=""  selected></option>
+                </select>
+            </div>
+            <div class="form-inline">
+                <label asp-for="ProcedureId"></label><br />
+                <select asp-for="ProcedureId" class="selectList form-control" asp-items='new SelectList(new List<TblDocRegistry>(), "RegId", "RegName")' style="min-width:100px;"></select>
+            </div>
+
+            <br />
+            <div class="form-inline">
+                <input type="submit" value="Поиск" class="btn btn-primary mb-4" />
+            </div>
+   
     </form>
 </div>
+
+<script>
+    $("#SectionId").change(function () {
+        $("#ProcedureId").empty();
+        $.ajax({
+            type: 'GET',
+            url: '/Home/GetDocRegistries?parentID=' + $("#SectionId").val() ,
+            success: function (data) {
+                //$("#ProcedureId").append(new Option("",""));
+                for (var i = 0; i < data.length; i++) {
+                    $("#ProcedureId").append(new Option(data[i].regName, data[i].regId));
+                }
+              //  $("#DocRegistryList").append('<option value=' + data[i].regId + '>' + data[i].regName + '</option>');
+                console.log(data);
+            }
+        });
+    });
+  
+</script>

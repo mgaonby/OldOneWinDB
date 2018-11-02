@@ -19,5 +19,6 @@ namespace OldOneWinDB.Models.ViewModels
         public DateTime? MustBeReadyDate { get; set; }
         public string RegName { get; set; }
         public byte? State { get; set; }
+        public bool? ResultType { get; set; }
     }
 }
