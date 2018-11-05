@@ -395,8 +395,10 @@ namespace OldOneWinDB.Controllers
 
         protected string CreateRegCard(TblRegistration registration)
         {
-            string initialPath= _hostingEnvironment.ContentRootPath + "/Template/regcard.docx";
-            string targetfile = _hostingEnvironment.ContentRootPath + "/temp/" + registration.RegistrationId.ToString() + "_rk.docx";
+            //   string initialPath= _hostingEnvironment.ContentRootPath + @"\Template\regcard.docx";
+            // string targetfile = _hostingEnvironment.ContentRootPath + @"\temp\" + registration.RegistrationId.ToString() + "_rk.docx";
+            string initialPath=  @"\app\Template\regcard.docx";
+            string targetfile =  @"\app\temp\" + registration.RegistrationId.ToString() + "_rk.docx";
             string resultFileName = registration.RegistrationId.ToString() + "_rk.docx";
             System.IO.File.Copy(initialPath, targetfile, true);
             using (WordprocessingDocument document = WordprocessingDocument.Open(targetfile, true))
