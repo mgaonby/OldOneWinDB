@@ -115,6 +115,7 @@ namespace OldOneWinDB.Controllers
                     return RedirectToAction("Index");
             }
             _cache.Set("FindParamsModel", model);
+            ViewBag.RegCount = GetRegistrationListCount();
             return View(GetRegistrationsViewModelsList(GetRegistrationsList()));
         }
 
@@ -142,12 +143,11 @@ namespace OldOneWinDB.Controllers
             return File(memory, GetContentType(path), Path.GetFileName(path));
         }
 
-
-        string getRegistrationListSQLQuery()
+        string getRegistrationListSQLQuery(string QueryType = "*")
         {
             FindParamsModel findParamsModel = (FindParamsModel)_cache.Get("FindParamsModel");
             SelectPeriodModel selectPeriodModel = (SelectPeriodModel)_cache.Get("SelectedPeripod");
-            string sqlExpression = String.Format("SELECT * FROM tblRegistration WHERE GettingDate > '1.1.{0}' AND GettingDate < '31.12.{1}'", selectPeriodModel.BeginYear, selectPeriodModel.EndYear);
+            string sqlExpression = String.Format("SELECT {0} FROM tblRegistration WHERE GettingDate > '1.1.{1}' AND GettingDate < '31.12.{2}'", QueryType, selectPeriodModel.BeginYear, selectPeriodModel.EndYear);
 
             if (findParamsModel.DocNo != null && findParamsModel.DocNo != 0)
             {
@@ -217,11 +217,11 @@ namespace OldOneWinDB.Controllers
             {
                 sqlExpression = sqlExpression + String.Format("AND {0} = '{1}' ", "RegID", findParamsModel.ProcedureId.ToString());
             }
-            sqlExpression = sqlExpression + " order by GettingDate";
+            if (QueryType == "*")
+                sqlExpression = sqlExpression + " order by GettingDate";
 
             return sqlExpression;
         }
-
 
         List<TblRegistration> getRegistrationListExecuteSqlQuery(string query)
         {
@@ -298,6 +298,19 @@ namespace OldOneWinDB.Controllers
             return getRegistrationListExecuteSqlQuery(sqlExpression);
         }
 
+        int GetRegistrationListCount()
+        {
+            int result = 0;
+            ConnectionStrings connectionString = (ConnectionStrings)_cache.Get("ConnectionString");
+            using (SqlConnection connection = new SqlConnection(connectionString.ConnectionString))
+            {
+                connection.Open();
+                SqlCommand command = new SqlCommand(getRegistrationListSQLQuery("COUNT (*)"), connection);
+                result = (int)command.ExecuteScalar();            
+            }
+            return result ;
+        }
+
         List<TblOrganization> GetTblOrganizations()
         {
             ConnectionStrings connString = (ConnectionStrings)_cache.Get("ConnectionString");
@@ -334,7 +347,7 @@ namespace OldOneWinDB.Controllers
             ConnectionStrings connString = (ConnectionStrings)_cache.Get("ConnectionString");
             string connectionString = connString.ConnectionString;
             List<TblDocRegistry> result = new List<TblDocRegistry>();
-            string sqlExpression = String.Format("SELECT * FROM tblDocRegistry");
+            string sqlExpression = String.Format("SELECT * FROM tblDocRegistry order by RegName");
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 connection.Open();
@@ -369,9 +382,7 @@ namespace OldOneWinDB.Controllers
         public List<TblDocRegistry> GetDocRegistries(string parentID)
         {
             return GetDocRegistries().Where(x => x.ParrentId.ToString() == parentID).ToList();
-        }
-
-        
+        }      
 
         TblRegistration GetRegistrationItem(Guid RegistrationID)
         {

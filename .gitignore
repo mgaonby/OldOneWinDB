@@ -1,0 +1,6 @@
+
+obj/OldOneWinDB.csproj.nuget.g.targets
+*.cache
+*.targets
+obj/OldOneWinDB.csproj.nuget.g.props
+obj/OldOneWinDB.csproj.nuget.cache
