@@ -19,7 +19,7 @@
         </div>
     </div>*@
 <br><br>
-    <table class="table table-hover table-striped">
+    <table class="maintable table table-hover table-striped">
         <thead class="thead-light">
             <tr>
                 <th scope="col">Номер</th>
@@ -38,15 +38,16 @@
             @Html.Partial("_RegistrationItems")
         </tbody>
     </table>
+    <div id="loading"><img src="~/images/loading_spinner.gif"></div>
 <script>
-
     $(function () {
 
-
+        $('div#loading').hide();
 
         var page = 0;
         var _inCallback = false;
         function loadItems() {
+            console.log("page " + page);
             if (page > -1 && !_inCallback) {
                 _inCallback = true;
                 page++;
@@ -70,10 +71,9 @@
         }
         // обработка события скроллинга
         $(window).scroll(function () {
-            if ($(window).scrollTop() == $(document).height() - $(window).height()) {
-
+            if ($(window).scrollTop() + $(window).height() >= $(document).height() - 200) {
                 loadItems();
             }
         });
-    })
+    });
 </script>

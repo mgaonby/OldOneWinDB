@@ -397,8 +397,9 @@ namespace OldOneWinDB.Controllers
         {
             //   string initialPath= _hostingEnvironment.ContentRootPath + @"\Template\regcard.docx";
             // string targetfile = _hostingEnvironment.ContentRootPath + @"\temp\" + registration.RegistrationId.ToString() + "_rk.docx";
-            string initialPath=  @"/Template/regcard.docx";
-            string targetfile =  @"/temp/" + registration.RegistrationId.ToString() + "_rk.docx";
+            
+            string initialPath= Path.GetFullPath(_hostingEnvironment.ContentRootPath + "/Template/regcard.docx");
+            string targetfile = Path.GetFullPath(_hostingEnvironment.ContentRootPath + @"\temp\" + registration.RegistrationId.ToString() + "_rk.docx"); 
             string resultFileName = registration.RegistrationId.ToString() + "_rk.docx";
             System.IO.File.Copy(initialPath, targetfile, true);
             using (WordprocessingDocument document = WordprocessingDocument.Open(targetfile, true))
